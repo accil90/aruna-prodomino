@@ -59,4 +59,34 @@ class DominoCoreTest {
         assertFalse(unknown.contains(DominoTile.of(0, 1)))
         assertTrue(unknown.contains(DominoTile.of(0, 2)))
     }
+
+    @Test
+    fun gapleSessionTracksOwnPlayAndUpdatesOpenEnds() {
+        val session = GapleSession()
+        session.replaceHand(listOf(DominoTile.of(2, 5), DominoTile.of(5, 6)))
+        session.playOwnTile(DominoTile.of(2, 5), ChainSide.LEFT)
+
+        assertEquals(1, session.handTiles().size)
+        assertEquals(2, session.chain.leftEnd)
+        assertEquals(5, session.chain.rightEnd)
+        assertEquals(1, session.currentPlayer)
+        assertTrue(DominoTile.of(2, 5) in session.tracker.visibleTiles())
+    }
+
+    @Test
+    fun fourConsecutivePassesMarkTheRoundBlocked() {
+        val session = GapleSession()
+        repeat(4) { session.passTurn() }
+        assertTrue(session.roundBlocked)
+        assertEquals(0, session.currentPlayer)
+    }
+
+    @Test
+    fun sessionUnknownTilesExcludeVisibleTilesAndOwnHand() {
+        val session = GapleSession()
+        session.replaceHand(listOf(DominoTile.of(1, 2), DominoTile.of(3, 4)))
+        session.tracker.markVisible(DominoTile.of(0, 0))
+        assertEquals(25, session.unknownTiles().size)
+    }
+
 }
