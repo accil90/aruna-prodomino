@@ -3,26 +3,27 @@ package id.aruna.domino
 enum class ChainSide { LEFT, RIGHT }
 
 /**
- * Represents the public chain on the table. It stores only tiles that have
- * actually been confirmed as played.
+ * Stores the public table chain with explicit oriented values at both ends.
+ * Only confirmed played tiles belong in this chain.
  */
 class DominoChain {
-    private val tiles = mutableListOf<DominoTile>()
+    private data class PlacedTile(
+        val tile: DominoTile,
+        val leftValue: Int,
+        val rightValue: Int
+    )
+
+    private val tiles = mutableListOf<PlacedTile>()
 
     val isEmpty: Boolean get() = tiles.isEmpty()
     val size: Int get() = tiles.size
-    fun snapshot(): List<DominoTile> = tiles.toList()
+    fun snapshot(): List<DominoTile> = tiles.map { it.tile }
 
-    val leftEnd: Int?
-        get() = tiles.firstOrNull()?.let { it.low }
+    val leftEnd: Int? get() = tiles.firstOrNull()?.leftValue
+    val rightEnd: Int? get() = tiles.lastOrNull()?.rightValue
 
-    val rightEnd: Int?
-        get() = tiles.lastOrNull()?.let { it.high }
-
-    fun canPlace(tile: DominoTile): Boolean {
-        if (tiles.isEmpty()) return true
-        return tile.matches(leftEnd!!) || tile.matches(rightEnd!!)
-    }
+    fun canPlace(tile: DominoTile): Boolean =
+        tiles.isEmpty() || legalSides(tile).isNotEmpty()
 
     fun legalSides(tile: DominoTile): Set<ChainSide> {
         if (tiles.isEmpty()) return setOf(ChainSide.LEFT)
@@ -34,22 +35,28 @@ class DominoChain {
 
     fun placeFirst(tile: DominoTile) {
         require(tiles.isEmpty()) { "The chain already has a starting tile." }
-        tiles.add(tile)
+        tiles.add(PlacedTile(tile, tile.low, tile.high))
     }
 
     fun place(tile: DominoTile, side: ChainSide) {
         require(tiles.isNotEmpty()) { "Place the first tile before extending the chain." }
         when (side) {
             ChainSide.LEFT -> {
-                require(tile.matches(leftEnd!!)) { "Tile does not match the left end." }
-                tiles.add(0, tile)
+                val end = leftEnd!!
+                require(tile.matches(end)) { "Tile does not match the left end." }
+                val newOuter = if (tile.high == end) tile.low else tile.high
+                tiles.add(0, PlacedTile(tile, newOuter, end))
             }
             ChainSide.RIGHT -> {
-                require(tile.matches(rightEnd!!)) { "Tile does not match the right end." }
-                tiles.add(tile)
+                val end = rightEnd!!
+                require(tile.matches(end)) { "Tile does not match the right end." }
+                val newOuter = if (tile.low == end) tile.high else tile.low
+                tiles.add(PlacedTile(tile, end, newOuter))
             }
         }
     }
 
-    fun clear() = tiles.clear()
+    fun clear() {
+        tiles.clear()
+    }
 }
