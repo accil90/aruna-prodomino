@@ -17,6 +17,14 @@ data class GapleEvent(
 
 enum class GapleEventType { PLAY, PASS }
 
+data class GapleStatistics(
+    val recordedPlays: Int,
+    val ownTilesRemaining: Int,
+    val ownRemainingPips: Int,
+    val knownTiles: Int,
+    val unknownTiles: Int
+)
+
 class GapleSession(
     val playerNames: List<String> = listOf("Kamu", "Pemain 2", "Pemain 3", "Pemain 4")
 ) {
@@ -99,6 +107,18 @@ class GapleSession(
         MoveAnalyzer.remainingUnknown(tracker.visibleTiles(), hand)
 
     fun ownHandPipTotal(): Int = hand.sumOf { it.low + it.high }
+
+    /** Reports only the user's hand and publicly known tiles. */
+    fun statistics(): GapleStatistics {
+        val knownTiles = tracker.visibleTiles() + hand
+        return GapleStatistics(
+            recordedPlays = events.count { it.type == GapleEventType.PLAY },
+            ownTilesRemaining = hand.size,
+            ownRemainingPips = ownHandPipTotal(),
+            knownTiles = knownTiles.size,
+            unknownTiles = DominoTile.fullSet().size - knownTiles.size
+        )
+    }
 
     fun resetRound() {
         hand.clear()
