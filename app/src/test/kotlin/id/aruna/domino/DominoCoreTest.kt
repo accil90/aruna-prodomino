@@ -93,7 +93,7 @@ class DominoCoreTest {
     @Test
     fun sessionKeepsPublicPlayAndPassHistory() {
         val session = GapleSession()
-        session.replaceHand(listOf(DominoTile.of(1, 2)))
+        session.replaceHand(listOf(DominoTile.of(1, 2), DominoTile.of(2, 3)))
         session.playOwnTile(DominoTile.of(1, 2), ChainSide.LEFT)
         session.passTurn()
 
