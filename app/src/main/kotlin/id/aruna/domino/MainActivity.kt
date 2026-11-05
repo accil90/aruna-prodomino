@@ -14,6 +14,9 @@ import android.widget.TextView
 class MainActivity : Activity() {
     private val tracker = VisibleTileTracker()
     private val selectedHand = linkedSetOf<DominoTile>()
+    private val preferences by lazy {
+        getSharedPreferences("aruna_domino_local_session", MODE_PRIVATE)
+    }
     private val observedButtons = linkedMapOf<DominoTile, Button>()
     private val handButtons = linkedMapOf<DominoTile, Button>()
     private lateinit var status: TextView
@@ -54,14 +57,21 @@ class MainActivity : Activity() {
             textSize = 13f
         })
         page.addView(makeTileGrid(observedButtons) { tile ->
-            if (tile in tracker.visibleTiles()) tracker.removeVisible(tile)
-            else tracker.markVisible(tile)
+            if (tile in tracker.visibleTiles()) {
+                tracker.removeVisible(tile)
+            } else {
+                tracker.markVisible(tile)
+                selectedHand.remove(tile)
+                refreshHand()
+            }
+            persistState()
             refreshObserved()
         })
         page.addView(Button(this).apply {
             text = "Bersihkan semua tanda"
             setOnClickListener {
                 tracker.clear()
+                persistState()
                 refreshObserved()
             }
         })
@@ -79,9 +89,10 @@ class MainActivity : Activity() {
         page.addView(makeTileGrid(handButtons) { tile ->
             if (tile in selectedHand) {
                 selectedHand.remove(tile)
-            } else if (selectedHand.size < 7) {
+            } else if (tile !in tracker.visibleTiles() && selectedHand.size < 7) {
                 selectedHand.add(tile)
             }
+            persistState()
             refreshHand()
         })
 
@@ -105,6 +116,7 @@ class MainActivity : Activity() {
         page.addView(result)
 
         setContentView(ScrollView(this).apply { addView(page) })
+        restoreState()
         refreshObserved()
         refreshHand()
     }
@@ -181,6 +193,7 @@ class MainActivity : Activity() {
             result.text = "Isi kedua ujung meja dengan angka 0 sampai 6."
             return
         }
+        persistState(left, right)
         val chain = DominoChain()
         chain.placeFirst(DominoTile.of(left, right))
         val moves = MoveAnalyzer.legalMoves(selectedHand, chain)
@@ -198,4 +211,35 @@ class MainActivity : Activity() {
         result.text = "$moveSummary\n\nKartu yang sudah diketahui (meja + tanganmu): ${28 - unknown.size} / 28" +
             "\nKartu yang belum diketahui: ${unknown.size} / 28"
     }
+
+    private fun persistState(left: Int? = null, right: Int? = null) {
+        val editor = preferences.edit()
+            .putString("visible_tiles", TileSetCodec.encode(tracker.visibleTiles()))
+            .putString("own_hand", TileSetCodec.encode(selectedHand))
+        if (left != null) editor.putInt("left_end", left)
+        if (right != null) editor.putInt("right_end", right)
+        editor.apply()
+    }
+
+    private fun restoreState() {
+        runCatching {
+            TileSetCodec.decode(preferences.getString("visible_tiles", "").orEmpty())
+                .forEach { tracker.markVisible(it) }
+            TileSetCodec.decode(preferences.getString("own_hand", "").orEmpty())
+                .filter { it !in tracker.visibleTiles() }
+                .take(7)
+                .forEach { selectedHand.add(it) }
+            if (preferences.contains("left_end")) {
+                leftInput.setText(preferences.getInt("left_end", 0).toString())
+            }
+            if (preferences.contains("right_end")) {
+                rightInput.setText(preferences.getInt("right_end", 0).toString())
+            }
+        }.onFailure {
+            tracker.clear()
+            selectedHand.clear()
+            preferences.edit().clear().apply()
+        }
+    }
+
 }
