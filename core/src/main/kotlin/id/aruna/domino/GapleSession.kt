@@ -6,12 +6,26 @@ package id.aruna.domino
  * The app stores only the user's entered hand and tiles confirmed visible on
  * the public table. It never allocates unknown tiles to another seat.
  */
+data class GapleEvent(
+    val playerIndex: Int,
+    val type: GapleEventType,
+    val tile: DominoTile? = null,
+    val side: ChainSide? = null,
+    val leftEndAfter: Int? = null,
+    val rightEndAfter: Int? = null
+)
+
+enum class GapleEventType { PLAY, PASS }
+
 class GapleSession(
     val playerNames: List<String> = listOf("Kamu", "Pemain 2", "Pemain 3", "Pemain 4")
 ) {
     val tracker = VisibleTileTracker()
     val chain = DominoChain()
     private val hand = linkedSetOf<DominoTile>()
+    private val events = mutableListOf<GapleEvent>()
+
+    fun history(): List<GapleEvent> = events.toList()
 
     var currentPlayer: Int = 0
         private set
@@ -70,6 +84,7 @@ class GapleSession(
 
     fun passTurn() {
         check(!roundFinished && !roundBlocked) { "Ronde sudah selesai." }
+        events.add(GapleEvent(currentPlayer, GapleEventType.PASS))
         consecutivePasses += 1
         currentPlayer = (currentPlayer + 1) % 4
         if (consecutivePasses >= 4) roundBlocked = true
@@ -89,6 +104,7 @@ class GapleSession(
         hand.clear()
         tracker.clear()
         chain.clear()
+        events.clear()
         currentPlayer = 0
         consecutivePasses = 0
         roundBlocked = false
@@ -96,8 +112,19 @@ class GapleSession(
     }
 
     private fun placeOnChain(tile: DominoTile, side: ChainSide) {
+        require(tile !in tracker.visibleTiles()) { "Kartu ini sudah pernah dicatat di meja." }
         if (chain.isEmpty) chain.placeFirst(tile) else chain.place(tile, side)
         tracker.markVisible(tile)
+        events.add(
+            GapleEvent(
+                playerIndex = currentPlayer,
+                type = GapleEventType.PLAY,
+                tile = tile,
+                side = side,
+                leftEndAfter = chain.leftEnd,
+                rightEndAfter = chain.rightEnd
+            )
+        )
     }
 
     private fun afterPlay() {
