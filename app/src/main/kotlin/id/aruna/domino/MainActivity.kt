@@ -184,7 +184,8 @@ class MainActivity : Activity() {
         val chain = DominoChain()
         chain.placeFirst(DominoTile.of(left, right))
         val moves = MoveAnalyzer.legalMoves(selectedHand, chain)
-        result.text = if (moves.isEmpty()) {
+        val unknown = MoveAnalyzer.remainingUnknown(tracker.visibleTiles(), selectedHand)
+        val moveSummary = if (moves.isEmpty()) {
             "Tidak ada kartu pilihan yang cocok dengan ujung meja."
         } else {
             "Kartu yang sah dimainkan:\n" + moves.joinToString("\n") { move ->
@@ -194,5 +195,7 @@ class MainActivity : Activity() {
                 "• ${move.tile} — $side"
             }
         }
+        result.text = "$moveSummary\n\nKartu yang sudah diketahui (meja + tanganmu): ${28 - unknown.size} / 28" +
+            "\nKartu yang belum diketahui: ${unknown.size} / 28"
     }
 }
