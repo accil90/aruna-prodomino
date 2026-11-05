@@ -2,24 +2,32 @@ package id.aruna.domino
 
 import android.app.Activity
 import android.os.Bundle
+import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
 class MainActivity : Activity() {
     private val tracker = VisibleTileTracker()
+    private val selectedHand = linkedSetOf<DominoTile>()
+    private val observedButtons = linkedMapOf<DominoTile, Button>()
+    private val handButtons = linkedMapOf<DominoTile, Button>()
     private lateinit var status: TextView
-    private val tileButtons = linkedMapOf<DominoTile, Button>()
+    private lateinit var handStatus: TextView
+    private lateinit var leftInput: EditText
+    private lateinit var rightInput: EditText
+    private lateinit var result: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(20, 28, 20, 20)
+            setPadding(18, 24, 18, 24)
         }
 
         page.addView(TextView(this).apply {
@@ -27,95 +35,164 @@ class MainActivity : Activity() {
             textSize = 24f
             gravity = Gravity.CENTER
         })
-
         page.addView(TextView(this).apply {
-            text = "Pencatat keping Gaple • Set double-six"
+            text = "Pencatat keping dan analisis langkah Gaple"
             textSize = 14f
             gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 18)
+            setPadding(0, 8, 0, 16)
         })
 
         status = TextView(this).apply {
             textSize = 16f
             gravity = Gravity.CENTER
-            setPadding(0, 8, 0, 16)
+            setPadding(0, 8, 0, 12)
         }
         page.addView(status)
-
+        page.addView(sectionTitle("KARTU YANG SUDAH TERLIHAT"))
         page.addView(TextView(this).apply {
-            text = "Sentuh keping untuk menandai bahwa keping itu sudah terlihat. Sentuh lagi untuk membatalkan."
-            textSize = 14f
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 12)
+            text = "Tandai hanya kartu yang benar-benar terlihat di meja atau sudah terbuka."
+            textSize = 13f
         })
-
-        val tileGrid = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        val allTiles = DominoTile.fullSet().sortedWith(
-            compareBy<DominoTile> { it.low }.thenBy { it.high }
-        )
-
-        allTiles.chunked(4).forEach { rowTiles ->
-            val row = LinearLayout(this).apply {
-                orientation = LinearLayout.HORIZONTAL
-            }
-            rowTiles.forEach { tile ->
-                val tileButton = Button(this).apply {
-                    text = tile.toString()
-                    textSize = 14f
-                    isAllCaps = false
-                    setOnClickListener {
-                        if (tracker.visibleTiles().contains(tile)) {
-                            tracker.removeVisible(tile)
-                        } else {
-                            tracker.markVisible(tile)
-                        }
-                        refreshTiles()
-                    }
-                }
-                val params = LinearLayout.LayoutParams(
-                    0,
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    1f
-                )
-                params.setMargins(3, 3, 3, 3)
-                row.addView(tileButton, params)
-                tileButtons[tile] = tileButton
-            }
-            tileGrid.addView(row)
-        }
-
-        val scroll = ScrollView(this).apply {
-            addView(tileGrid)
-        }
-        page.addView(
-            scroll,
-            LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                0,
-                1f
-            )
-        )
-
+        page.addView(makeTileGrid(observedButtons) { tile ->
+            if (tile in tracker.visibleTiles()) tracker.removeVisible(tile)
+            else tracker.markVisible(tile)
+            refreshObserved()
+        })
         page.addView(Button(this).apply {
             text = "Bersihkan semua tanda"
             setOnClickListener {
                 tracker.clear()
-                refreshTiles()
+                refreshObserved()
             }
         })
 
-        setContentView(page)
-        refreshTiles()
+        page.addView(sectionTitle("ANALISIS KARTU DI TANGAN"))
+        page.addView(TextView(this).apply {
+            text = "Pilih kartu milikmu (maksimal 7). Masukkan angka ujung kiri dan kanan rantai di meja."
+            textSize = 13f
+        })
+        handStatus = TextView(this).apply {
+            textSize = 15f
+            setPadding(0, 8, 0, 4)
+        }
+        page.addView(handStatus)
+        page.addView(makeTileGrid(handButtons) { tile ->
+            if (tile in selectedHand) {
+                selectedHand.remove(tile)
+            } else if (selectedHand.size < 7) {
+                selectedHand.add(tile)
+            }
+            refreshHand()
+        })
+
+        val ends = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        leftInput = makeNumberInput("Ujung kiri")
+        rightInput = makeNumberInput("Ujung kanan")
+        ends.addView(leftInput, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        ends.addView(rightInput, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        page.addView(ends)
+
+        page.addView(Button(this).apply {
+            text = "Analisis langkah"
+            setOnClickListener { analyzeHand() }
+        })
+        result = TextView(this).apply {
+            textSize = 15f
+            setPadding(0, 10, 0, 24)
+        }
+        page.addView(result)
+
+        setContentView(ScrollView(this).apply { addView(page) })
+        refreshObserved()
+        refreshHand()
     }
 
-    private fun refreshTiles() {
+    private fun sectionTitle(value: String) = TextView(this).apply {
+        text = value
+        textSize = 18f
+        setPadding(0, 20, 0, 6)
+    }
+
+    private fun makeNumberInput(label: String) = EditText(this).apply {
+        hint = label
+        inputType = InputType.TYPE_CLASS_NUMBER
+        setSingleLine(true)
+        textSize = 16f
+    }
+
+    private fun makeTileGrid(
+        buttons: MutableMap<DominoTile, Button>,
+        onSelected: (DominoTile) -> Unit
+    ): LinearLayout {
+        val grid = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+        }
+        val tiles = DominoTile.fullSet().sortedWith(
+            compareBy<DominoTile> { it.low }.thenBy { it.high }
+        )
+        tiles.chunked(4).forEach { group ->
+            val row = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+            group.forEach { tile ->
+                val button = Button(this).apply {
+                    text = tile.toString()
+                    textSize = 13f
+                    isAllCaps = false
+                    setOnClickListener { onSelected(tile) }
+                }
+                val params = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                params.setMargins(2, 2, 2, 2)
+                row.addView(button, params)
+                buttons[tile] = button
+            }
+            grid.addView(row)
+        }
+        return grid
+    }
+
+    private fun refreshObserved() {
         val visible = tracker.visibleTiles()
-        tileButtons.forEach { (tile, button) ->
+        status.text = "Terlihat: ${tracker.visibleCount()} / 28  •  Belum diketahui: ${tracker.unknownCount()}"
+        observedButtons.forEach { (tile, button) ->
             button.text = if (tile in visible) "✓ $tile" else tile.toString()
             button.alpha = if (tile in visible) 0.65f else 1.0f
         }
-        status.text = "Terlihat: ${tracker.visibleCount()} / 28    •    Belum diketahui: ${tracker.unknownCount()}"
+    }
+
+    private fun refreshHand() {
+        handStatus.text = "Kartu dipilih: ${selectedHand.size} / 7"
+        handButtons.forEach { (tile, button) ->
+            button.text = if (tile in selectedHand) "✓ $tile" else tile.toString()
+            button.alpha = if (tile in selectedHand) 0.65f else 1.0f
+        }
+    }
+
+    private fun analyzeHand() {
+        if (selectedHand.isEmpty()) {
+            result.text = "Pilih kartu di tangan terlebih dahulu."
+            return
+        }
+        val left = leftInput.text.toString().toIntOrNull()
+        val right = rightInput.text.toString().toIntOrNull()
+        if (left == null || right == null || left !in 0..6 || right !in 0..6) {
+            result.text = "Isi kedua ujung meja dengan angka 0 sampai 6."
+            return
+        }
+        val chain = DominoChain()
+        chain.placeFirst(DominoTile.of(left, right))
+        val moves = MoveAnalyzer.legalMoves(selectedHand, chain)
+        result.text = if (moves.isEmpty()) {
+            "Tidak ada kartu pilihan yang cocok dengan ujung meja."
+        } else {
+            "Kartu yang sah dimainkan:\n" + moves.joinToString("\n") { move ->
+                val side = move.sides.joinToString(" dan ") {
+                    if (it == ChainSide.LEFT) "kiri" else "kanan"
+                }
+                "• ${move.tile} — $side"
+            }
+        }
     }
 }
