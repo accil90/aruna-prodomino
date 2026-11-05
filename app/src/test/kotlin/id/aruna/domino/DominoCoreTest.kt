@@ -111,4 +111,20 @@ class DominoCoreTest {
         session.recordObservedPlay(DominoTile.of(1, 2), ChainSide.RIGHT, 1)
     }
 
+
+    @Test
+    fun statisticsReportOnlyKnownRoundFacts() {
+        val session = GapleSession()
+        session.replaceHand(listOf(DominoTile.of(1, 2), DominoTile.of(3, 4)))
+        session.tracker.markVisible(DominoTile.of(0, 0))
+        session.playOwnTile(DominoTile.of(1, 2), ChainSide.LEFT)
+
+        val stats = session.statistics()
+        assertEquals(1, stats.recordedPlays)
+        assertEquals(1, stats.ownTilesRemaining)
+        assertEquals(7, stats.ownRemainingPips)
+        assertEquals(2, stats.knownTiles)
+        assertEquals(26, stats.unknownTiles)
+    }
+
 }
