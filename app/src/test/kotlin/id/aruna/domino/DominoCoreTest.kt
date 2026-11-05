@@ -89,4 +89,26 @@ class DominoCoreTest {
         assertEquals(25, session.unknownTiles().size)
     }
 
+
+    @Test
+    fun sessionKeepsPublicPlayAndPassHistory() {
+        val session = GapleSession()
+        session.replaceHand(listOf(DominoTile.of(1, 2)))
+        session.playOwnTile(DominoTile.of(1, 2), ChainSide.LEFT)
+        session.passTurn()
+
+        assertEquals(2, session.history().size)
+        assertEquals(GapleEventType.PLAY, session.history()[0].type)
+        assertEquals(DominoTile.of(1, 2), session.history()[0].tile)
+        assertEquals(GapleEventType.PASS, session.history()[1].type)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun sessionRejectsRecordingTheSamePublicTileTwice() {
+        val session = GapleSession()
+        session.replaceHand(listOf(DominoTile.of(1, 2), DominoTile.of(2, 3)))
+        session.playOwnTile(DominoTile.of(1, 2), ChainSide.LEFT)
+        session.recordObservedPlay(DominoTile.of(1, 2), ChainSide.RIGHT, 1)
+    }
+
 }
