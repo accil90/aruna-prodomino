@@ -19,7 +19,12 @@ object MoveAnalyzer {
             .sortedWith(compareBy<LegalMove> { it.tile.low }.thenBy { it.tile.high })
     }
 
-    fun remainingUnknown(visibleTiles: Collection<DominoTile>): Set<DominoTile> {
-        return DominoTile.fullSet() - visibleTiles.toSet()
+    fun remainingUnknown(
+        visibleTiles: Collection<DominoTile>,
+        knownHand: Collection<DominoTile> = emptyList()
+    ): Set<DominoTile> {
+        // Publicly visible tiles and the user's explicitly entered hand are both known.
+        // The returned set remains unassigned: it does not infer any opponent's hand.
+        return DominoTile.fullSet() - visibleTiles.toSet() - knownHand.toSet()
     }
 }
