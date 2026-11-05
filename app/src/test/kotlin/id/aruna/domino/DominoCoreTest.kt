@@ -49,12 +49,14 @@ class DominoCoreTest {
     }
 
     @Test
-    fun unknownTilesAreTheComplementOfVisibleTiles() {
+    fun unknownTilesExcludeVisibleTilesAndOwnHand() {
         val visible = setOf(DominoTile.of(0, 0), DominoTile.of(6, 6))
-        val unknown = MoveAnalyzer.remainingUnknown(visible)
+        val ownHand = setOf(DominoTile.of(0, 1), DominoTile.of(2, 3))
+        val unknown = MoveAnalyzer.remainingUnknown(visible, ownHand)
 
-        assertEquals(26, unknown.size)
+        assertEquals(24, unknown.size)
         assertFalse(unknown.contains(DominoTile.of(0, 0)))
-        assertTrue(unknown.contains(DominoTile.of(0, 1)))
+        assertFalse(unknown.contains(DominoTile.of(0, 1)))
+        assertTrue(unknown.contains(DominoTile.of(0, 2)))
     }
 }
