@@ -123,8 +123,8 @@ class DominoCoreTest {
         assertEquals(1, stats.recordedPlays)
         assertEquals(1, stats.ownTilesRemaining)
         assertEquals(7, stats.ownRemainingPips)
-        assertEquals(2, stats.knownTiles)
-        assertEquals(26, stats.unknownTiles)
+        assertEquals(3, stats.knownTiles)
+        assertEquals(25, stats.unknownTiles)
     }
 
 }
