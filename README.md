@@ -5,25 +5,48 @@ ARUNA Domino Pro is an Android learning and analysis project for standard four-p
 ## Initial goals
 
 - Model all 28 tiles in a standard double-six domino set.
-- Record tiles that are explicitly visible or entered by the user.
+- Let the user manually record tiles that are explicitly visible.
 - Calculate which tiles remain unknown without assigning hidden tiles to other players.
-- Analyze legal connections using confirmed game information.
-- Provide an optional, user-controlled screen observer and floating analysis panel.
+- Analyze legal connections using a confirmed table chain and a hand entered by the user.
+- Add optional, user-controlled screen observation and a floating analysis panel in later stages.
+
+## Current implementation
+
+- Android application module with Kotlin and Java 17.
+- First manual tile-tracking screen with all 28 double-six tiles.
+- Core model for normalized domino tiles.
+- Public table-chain model with left/right endpoint handling.
+- Legal-move analyzer for a user-entered hand.
+- Unit tests for the tile set, chain orientation, legal moves, and unknown-tile calculation.
+- GitHub Actions workflow configured to build a debug APK and upload it as an artifact.
 
 ## Privacy and safety
 
 Screen observation must use Android MediaProjection and its system consent prompt. The user can start and stop observation at any time. The app does not inspect private data from another app, bypass protections, or access game servers.
 
-## Current status
-
-**Foundation stage:** project documentation and pure Kotlin core logic. This repository is not yet a ready-to-install APK. Android UI, OCR, screen-capture permission flow, and optional overlay will be implemented and tested in later stages.
-
-## Project layout
-
-- `docs/ARCHITECTURE.md` — component design and data flow.
-- `docs/GAME_RULES.md` — standard double-six assumptions.
-- `core/src/main/kotlin/` — Kotlin domain logic.
-
-## Analysis principle
-
 Only tiles that are visible or explicitly entered are treated as known. All other tiles remain unknown; the app does not claim to know opponents' concealed hands.
+
+## Build
+
+The project uses Gradle 8.9, Android Gradle Plugin 8.7.3, Kotlin 2.0.21, and JDK 17.
+
+On a machine with Android SDK and Gradle installed:
+
+```bash
+gradle testDebugUnitTest
+gradle assembleDebug
+```
+
+The debug APK is produced at `app/build/outputs/apk/debug/app-debug.apk`.
+
+GitHub Actions is configured to run the build on pushes to `main`. The downloadable APK, when a run succeeds, is available under the workflow's Artifacts section.
+
+## Next stages
+
+1. Complete and verify the first Android build.
+2. Add manual hand entry, table-chain entry, and visible-tile history.
+3. Add MediaProjection with clear start/stop controls.
+4. Add on-device tile recognition with user confirmation for uncertain readings.
+5. Add an optional overlay panel and optimize on the POCO X3 NFC / Android 12.
+
+This repository is under active development. A successful source commit is not the same as a tested release APK; builds and device testing must be verified separately.
