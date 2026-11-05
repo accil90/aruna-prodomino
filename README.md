@@ -17,7 +17,10 @@ ARUNA Domino Pro is an Android learning and analysis project for standard four-p
 - Core model for normalized domino tiles.
 - Public table-chain model with left/right endpoint handling.
 - Legal-move analyzer for a user-entered hand.
-- Unit tests for the tile set, chain orientation, legal moves, and unknown-tile calculation.
+- Four-player round state engine with turn order, play/pass events, duplicate-play prevention, and blocked-round detection.
+- Round statistics limited to verifiable facts: recorded plays/passes, own remaining tiles/pips, and known/unknown tile counts.
+- Dependency-free tile-set codec and local preference persistence for the hand and visible-tile selections.
+- Unit tests for tile rules, chain orientation, move legality, session events, statistics, and tile-state encoding.
 - GitHub Actions workflow configured to build a debug APK and upload it as an artifact.
 
 ## Privacy and safety
