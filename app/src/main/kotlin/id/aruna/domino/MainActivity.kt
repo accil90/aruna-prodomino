@@ -86,6 +86,13 @@ class MainActivity : Activity() {
             setPadding(0, 8, 0, 16)
         })
 
+        page.addView(Button(this).apply {
+            text = "BUKA SIMULASI OFFLINE"
+            setOnClickListener {
+                startActivity(Intent(this@MainActivity, OfflineSimulationActivity::class.java))
+            }
+        })
+        
         page.addView(sectionTitle("PENGAMAT LAYAR"))
         observerStatus = TextView(this).apply {
             text = "Pengamat tidak aktif. Mulai untuk meminta izin tangkap layar Android."
