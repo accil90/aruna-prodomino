@@ -108,6 +108,10 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         page.addView(observerControls)
+        page.addView(Button(this).apply {
+            text = "Akhiri & reset permainan"
+            setOnClickListener { resetGameSession() }
+        })
         page.addView(sectionTitle("HASIL PENGAMATAN"))
         observerReport = TextView(this).apply {
             textSize = 13f
@@ -205,6 +209,30 @@ class MainActivity : Activity() {
         restoreState()
         refreshObserved()
         refreshHand()
+    }
+
+    private fun resetGameSession() {
+        startService(Intent(this, ScreenObserverService::class.java).apply {
+            action = ScreenObserverService.ACTION_RESET
+        })
+        observerActive = false
+        observerFrames = 0L
+        observerWidth = 0
+        observerHeight = 0
+        observerDensityDpi = 0
+        observerStartedAt = 0L
+        observerLastFrameAt = 0L
+        observerStatus.text = "Pengamatan dan data sesi sudah direset."
+        tracker.clear()
+        selectedHand.clear()
+        preferences.edit().clear().apply()
+        leftInput.text.clear()
+        rightInput.text.clear()
+        result.text = ""
+        refreshObserved()
+        refreshHand()
+        refreshObserverReport()
+        Toast.makeText(this, "Sesi permainan direset. Tidak ada gambar frame yang tersimpan.", Toast.LENGTH_LONG).show()
     }
 
     private fun buildObserverReport(): String {
