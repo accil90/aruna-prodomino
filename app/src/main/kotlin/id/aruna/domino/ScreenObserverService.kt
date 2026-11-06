@@ -91,7 +91,7 @@ class ScreenObserverService : Service() {
 
         activeProjection.registerCallback(object : MediaProjection.Callback() {
             override fun onStop() {
-                releaseCaptureResources()
+                releaseCaptureResources(stopProjection = false)
                 sendStatus(false)
                 stopSelf()
             }
@@ -152,7 +152,7 @@ class ScreenObserverService : Service() {
         }
     }
 
-    private fun releaseCaptureResources() {
+    private fun releaseCaptureResources(stopProjection: Boolean = true) {
         virtualDisplay?.release()
         virtualDisplay = null
         imageReader?.setOnImageAvailableListener(null, null)
@@ -160,7 +160,7 @@ class ScreenObserverService : Service() {
         imageReader = null
         val activeProjection = projection
         projection = null
-        activeProjection?.stop()
+        if (stopProjection) activeProjection?.stop()
     }
 
     private fun sendStatus(active: Boolean) {
