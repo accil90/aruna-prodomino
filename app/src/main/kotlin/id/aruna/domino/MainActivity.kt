@@ -39,7 +39,7 @@ class MainActivity : Activity() {
             val active = intent.getBooleanExtra(ScreenObserverService.EXTRA_ACTIVE, false)
             val frames = intent.getLongExtra(ScreenObserverService.EXTRA_FRAMES, 0L)
             observerStatus.text = if (active) {
-                "Pengamat aktif • $frames frame diterima\\nPengenalan kartu belum diaktifkan."
+                "Pengamat aktif • $frames frame diterima\nPengenalan kartu belum diaktifkan."
             } else {
                 "Pengamat tidak aktif."
             }
