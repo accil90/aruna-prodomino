@@ -396,6 +396,7 @@ class MainActivity : Activity() {
     private fun analyzeHand() {
         if (selectedHand.isEmpty()) {
             result.text = "Pilih kartu di tangan terlebih dahulu."
+            hideFloatingRecommendation()
             return
         }
         val left = leftInput.text.toString().toIntOrNull()
@@ -421,6 +422,30 @@ class MainActivity : Activity() {
         }
         result.text = "$moveSummary\n\nKartu yang sudah diketahui (meja + tanganmu): ${28 - unknown.size} / 28" +
             "\nKartu yang belum diketahui: ${unknown.size} / 28"
+
+        val bestMove = moves.firstOrNull()
+        if (bestMove == null) {
+            hideFloatingRecommendation()
+        } else {
+            val sideLabel = bestMove.sides.joinToString(" / ") {
+                if (it == ChainSide.LEFT) "KIRI" else "KANAN"
+            }
+            showFloatingRecommendation(bestMove.tile.toString(), sideLabel)
+        }
+    }
+
+    private fun showFloatingRecommendation(tile: String, sides: String) {
+        startService(Intent(this, ScreenObserverService::class.java).apply {
+            action = ScreenObserverService.ACTION_SHOW_RECOMMENDATION
+            putExtra(ScreenObserverService.EXTRA_RECOMMENDED_TILE, tile)
+            putExtra(ScreenObserverService.EXTRA_RECOMMENDED_SIDES, sides)
+        })
+    }
+
+    private fun hideFloatingRecommendation() {
+        startService(Intent(this, ScreenObserverService::class.java).apply {
+            action = ScreenObserverService.ACTION_HIDE_RECOMMENDATION
+        })
     }
 
     private fun persistState(left: Int? = null, right: Int? = null) {
