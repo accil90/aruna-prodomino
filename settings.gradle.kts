@@ -15,4 +15,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "ArunaDominoPro"
-include(":app")
+include(":app", ":desktop")
