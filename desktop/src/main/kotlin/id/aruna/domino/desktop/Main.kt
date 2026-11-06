@@ -47,7 +47,6 @@ private fun ArunaDesktopApp() {
     val session = remember { GapleSession() }
     var low by remember { mutableStateOf(0) }
     var high by remember { mutableStateOf(0) }
-    var refresh by remember { mutableStateOf(0) }
     var message by remember { mutableStateOf("Masukkan kartu tangan, lalu catat kartu yang terlihat di meja.") }
 
     val selectedTile = DominoTile.of(low, high)
@@ -56,7 +55,6 @@ private fun ArunaDesktopApp() {
 
     fun update(messageText: String) {
         message = messageText
-        refresh++
     }
 
     Surface(modifier = Modifier.fillMaxSize()) {
