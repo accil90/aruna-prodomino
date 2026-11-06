@@ -3,6 +3,8 @@ package id.aruna.domino
 import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.content.Intent
 import android.content.IntentFilter
 import android.media.projection.MediaProjectionManager
@@ -16,6 +18,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 
 class MainActivity : Activity() {
     private val tracker = VisibleTileTracker()
@@ -31,18 +34,33 @@ class MainActivity : Activity() {
     private lateinit var rightInput: EditText
     private lateinit var result: TextView
     private lateinit var observerStatus: TextView
+    private lateinit var observerReport: TextView
     private var observerReceiverRegistered = false
+    private var observerActive = false
+    private var observerFrames = 0L
+    private var observerWidth = 0
+    private var observerHeight = 0
+    private var observerDensityDpi = 0
+    private var observerStartedAt = 0L
+    private var observerLastFrameAt = 0L
 
     private val observerReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action != ScreenObserverService.ACTION_STATUS) return
             val active = intent.getBooleanExtra(ScreenObserverService.EXTRA_ACTIVE, false)
-            val frames = intent.getLongExtra(ScreenObserverService.EXTRA_FRAMES, 0L)
+            observerActive = active
+            observerFrames = intent.getLongExtra(ScreenObserverService.EXTRA_FRAMES, 0L)
+            observerWidth = intent.getIntExtra(ScreenObserverService.EXTRA_WIDTH, 0)
+            observerHeight = intent.getIntExtra(ScreenObserverService.EXTRA_HEIGHT, 0)
+            observerDensityDpi = intent.getIntExtra(ScreenObserverService.EXTRA_DENSITY_DPI, 0)
+            observerStartedAt = intent.getLongExtra(ScreenObserverService.EXTRA_STARTED_AT, 0L)
+            observerLastFrameAt = intent.getLongExtra(ScreenObserverService.EXTRA_LAST_FRAME_AT, 0L)
             observerStatus.text = if (active) {
-                "Pengamat aktif • $frames frame diterima\nPengenalan kartu belum diaktifkan."
+                "Pengamat aktif • $observerFrames frame diterima\\nPengenalan kartu belum diaktifkan."
             } else {
                 "Pengamat tidak aktif."
             }
+            refreshObserverReport()
         }
     }
 
@@ -90,6 +108,22 @@ class MainActivity : Activity() {
             }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         page.addView(observerControls)
+        page.addView(sectionTitle("HASIL PENGAMATAN"))
+        observerReport = TextView(this).apply {
+            textSize = 13f
+            setPadding(10, 10, 10, 10)
+            text = "Belum ada laporan. Mulai pengamat untuk mengumpulkan data layar."
+            setBackgroundColor(0xFFEFEFEF.toInt())
+        }
+        page.addView(observerReport)
+        page.addView(Button(this).apply {
+            text = "Salin laporan untuk dikirim"
+            setOnClickListener {
+                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(ClipData.newPlainText("Laporan ARUNA DOMINO", buildObserverReport()))
+                Toast.makeText(this@MainActivity, "Laporan disalin. Tempelkan ke chat.", Toast.LENGTH_SHORT).show()
+            }
+        })
         page.addView(TextView(this).apply {
             text = "Tahap ini hanya menangkap frame layar setelah izin diberikan. Gambar tidak disimpan atau dikirim; pengenalan kartu dan giliran akan ditambahkan pada tahap berikutnya."
             textSize = 12f
@@ -171,6 +205,38 @@ class MainActivity : Activity() {
         restoreState()
         refreshObserved()
         refreshHand()
+    }
+
+    private fun buildObserverReport(): String {
+        val started = if (observerStartedAt > 0L) {
+            java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                .format(java.util.Date(observerStartedAt))
+        } else "Belum dimulai"
+        val lastFrame = if (observerLastFrameAt > 0L) {
+            java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault())
+                .format(java.util.Date(observerLastFrameAt))
+        } else "Belum ada"
+        return """
+            LAPORAN PENGAMAT ARUNA DOMINO
+            Status: ${if (observerActive) "AKTIF" else "TIDAK AKTIF"}
+            Mulai pengamatan: $started
+            Frame diterima: $observerFrames
+            Resolusi layar: ${if (observerWidth > 0 && observerHeight > 0) "${observerWidth}x${observerHeight}" else "Belum tersedia"}
+            Kepadatan layar: ${if (observerDensityDpi > 0) "$observerDensityDpi dpi" else "Belum tersedia"}
+            Frame terakhir: $lastFrame
+
+            PENGENALAN DOMINO: BELUM TERPASANG
+            Kartu tangan: Belum dibaca otomatis
+            Kartu di meja: Belum dibaca otomatis
+            Ujung kiri/kanan: Belum dibaca otomatis
+            Giliran pemain: Belum dideteksi
+
+            Privasi: Frame hanya diterima lalu langsung ditutup; gambar tidak disimpan atau diunggah.
+        """.trimIndent()
+    }
+
+    private fun refreshObserverReport() {
+        observerReport.text = buildObserverReport()
     }
 
     private fun registerObserverReceiver() {
