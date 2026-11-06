@@ -29,6 +29,23 @@ Screen observation must use Android MediaProjection and its system consent promp
 
 Only tiles that are visible or explicitly entered are treated as known. All other tiles remain unknown; the app does not claim to know opponents' concealed hands.
 
+## Windows desktop application
+
+A separate Compose Desktop module is available for Windows development. It reuses the existing Kotlin game engine from `core` and does not replace or modify the Android application module.
+
+Requirements: JDK 17 and Gradle 8.9.
+
+Build the desktop application:
+
+```bash
+gradle :desktop:run
+gradle :desktop:packageDistributionForCurrentOS
+```
+
+The first command launches the desktop app. The second creates a native package for the operating system used to build it. Run the packaging command on Windows to produce a Windows installer.
+
+The initial desktop interface supports manual hand entry, legal-move display, recording publicly visible plays and passes, turn tracking, round history, and known/unknown tile counts. It does not infer opponents' concealed cards.
+
 ## Build
 
 The project uses Gradle 8.9, Android Gradle Plugin 8.7.3, Kotlin 2.0.21, and JDK 17.
