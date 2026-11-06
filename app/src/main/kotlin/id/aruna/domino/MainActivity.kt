@@ -7,6 +7,8 @@ import android.content.ClipboardManager
 import android.content.ClipData
 import android.content.Intent
 import android.content.IntentFilter
+import android.net.Uri
+import android.provider.Settings
 import android.media.projection.MediaProjectionManager
 import android.os.Bundle
 import android.os.Build
@@ -95,11 +97,11 @@ class MainActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
         }
         observerControls.addView(Button(this).apply {
-            text = "Mulai pengamat"
-            setOnClickListener { requestObserverPermission() }
+            text = "Aktifkan ANALISIS"
+            setOnClickListener { requestOverlayPermission() }
         }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         observerControls.addView(Button(this).apply {
-            text = "Hentikan"
+            text = "Nonaktifkan ANALISIS"
             setOnClickListener {
                 startService(Intent(this@MainActivity, ScreenObserverService::class.java).apply {
                     action = ScreenObserverService.ACTION_STOP
@@ -278,6 +280,16 @@ class MainActivity : Activity() {
         observerReceiverRegistered = true
     }
 
+    private fun requestOverlayPermission() {
+        if (Build.VERSION.SDK_INT >= 23 && !Settings.canDrawOverlays(this)) {
+            val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+            startActivityForResult(intent, REQUEST_OVERLAY_PERMISSION)
+            observerStatus.text = "Izinkan ARUNA menampilkan jendela rekomendasi mengambang."
+            return
+        }
+        requestObserverPermission()
+    }
+
     private fun requestObserverPermission() {
         val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
         startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE)
@@ -286,6 +298,14 @@ class MainActivity : Activity() {
     @Deprecated("Uses the compatible Activity result callback for the current minSdk.")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_OVERLAY_PERMISSION) {
+            if (Build.VERSION.SDK_INT < 23 || Settings.canDrawOverlays(this)) {
+                requestObserverPermission()
+            } else {
+                observerStatus.text = "Izin jendela mengambang belum diberikan."
+            }
+            return
+        }
         if (requestCode != REQUEST_SCREEN_CAPTURE) return
         if (resultCode != RESULT_OK || data == null) {
             observerStatus.text = "Izin tangkap layar tidak diberikan."
@@ -434,6 +454,7 @@ class MainActivity : Activity() {
     }
 
     companion object {
+        private const val REQUEST_OVERLAY_PERMISSION = 7301
         private const val REQUEST_SCREEN_CAPTURE = 7302
     }
 }
