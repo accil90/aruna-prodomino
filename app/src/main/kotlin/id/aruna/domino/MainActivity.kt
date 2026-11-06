@@ -39,7 +39,7 @@ class MainActivity : Activity() {
             gravity = Gravity.CENTER
         })
         page.addView(TextView(this).apply {
-            text = "Pencatat keping dan analisis langkah Gaple"
+            text = "Simulator latihan offline • rekomendasi satu kartu"
             textSize = 14f
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 16)
@@ -53,7 +53,7 @@ class MainActivity : Activity() {
         page.addView(status)
         page.addView(sectionTitle("KARTU YANG SUDAH TERLIHAT"))
         page.addView(TextView(this).apply {
-            text = "Tandai hanya kartu yang benar-benar terlihat di meja atau sudah terbuka."
+            text = "Masukkan kartu meja yang terlihat pada simulasi latihan ini."
             textSize = 13f
         })
         page.addView(makeTileGrid(observedButtons) { tile ->
@@ -78,7 +78,7 @@ class MainActivity : Activity() {
 
         page.addView(sectionTitle("ANALISIS KARTU DI TANGAN"))
         page.addView(TextView(this).apply {
-            text = "Pilih kartu milikmu (maksimal 7). Masukkan angka ujung kiri dan kanan rantai di meja."
+            text = "Pilih hingga 7 kartu untuk tangan simulasi. Isi angka ujung kiri dan kanan meja."
             textSize = 13f
         })
         handStatus = TextView(this).apply {
@@ -106,7 +106,7 @@ class MainActivity : Activity() {
         page.addView(ends)
 
         page.addView(Button(this).apply {
-            text = "Analisis langkah"
+            text = "Rekomendasikan 1 kartu (simulasi offline)"
             setOnClickListener { analyzeHand() }
         })
         result = TextView(this).apply {
@@ -196,20 +196,18 @@ class MainActivity : Activity() {
         persistState(left, right)
         val chain = DominoChain()
         chain.placeFirst(DominoTile.of(left, right))
-        val moves = MoveAnalyzer.legalMoves(selectedHand, chain)
+        val recommendation = MoveAnalyzer.recommendMove(selectedHand, chain)
         val unknown = MoveAnalyzer.remainingUnknown(tracker.visibleTiles(), selectedHand)
-        val moveSummary = if (moves.isEmpty()) {
-            "Tidak ada kartu pilihan yang cocok dengan ujung meja."
+        val recommendationText = if (recommendation == null) {
+            "Belum ada kartu yang cocok dengan ujung meja."
         } else {
-            "Kartu yang sah dimainkan:\n" + moves.joinToString("\n") { move ->
-                val side = move.sides.joinToString(" dan ") {
-                    if (it == ChainSide.LEFT) "kiri" else "kanan"
-                }
-                "• ${move.tile} — $side"
+            val side = recommendation.move.sides.joinToString(" atau ") {
+                if (it == ChainSide.LEFT) "KIRI" else "KANAN"
             }
+            "REKOMENDASI SIMULASI\n\n${recommendation.move.tile}\nSisi: $side\nAlasan: ${recommendation.reason}"
         }
-        result.text = "$moveSummary\n\nKartu yang sudah diketahui (meja + tanganmu): ${28 - unknown.size} / 28" +
-            "\nKartu yang belum diketahui: ${unknown.size} / 28"
+        result.text = "$recommendationText\n\nKartu diketahui (meja + tangan simulasi): ${28 - unknown.size} / 28" +
+            "\nKartu belum diketahui: ${unknown.size} / 28"
     }
 
     private fun persistState(left: Int? = null, right: Int? = null) {
