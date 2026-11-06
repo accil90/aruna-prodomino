@@ -8,7 +8,7 @@ ARUNA Domino Pro is an Android learning and analysis project for standard four-p
 - Let the user manually record tiles that are explicitly visible.
 - Calculate which tiles remain unknown without assigning hidden tiles to other players.
 - Analyze legal connections using a confirmed table chain and a hand entered by the user.
-- Add optional, user-controlled screen observation and a floating analysis panel in later stages.
+- Add user-controlled screen observation, on-device tile recognition, and an optional recommendation panel.
 
 ## Current implementation
 
@@ -22,6 +22,7 @@ ARUNA Domino Pro is an Android learning and analysis project for standard four-p
 - Dependency-free tile-set codec and local preference persistence for the hand and visible-tile selections.
 - Unit tests for tile rules, chain orientation, move legality, session events, statistics, and tile-state encoding.
 - GitHub Actions workflow configured to build a debug APK and upload it as an artifact.
+- First screen-observer milestone: an Android MediaProjection foreground service with explicit system consent, start/stop controls, and a persistent notification. Captured frames are immediately discarded; no screenshot is saved, uploaded, or analyzed in this milestone.
 
 ## Privacy and safety
 
@@ -48,8 +49,8 @@ GitHub Actions is configured to run the build on pushes to `main`. The downloada
 
 1. Complete and verify the first Android build.
 2. Add manual hand entry, table-chain entry, and visible-tile history.
-3. Add MediaProjection with clear start/stop controls.
-4. Add on-device tile recognition with user confirmation for uncertain readings.
-5. Add an optional overlay panel and optimize on the POCO X3 NFC / Android 12.
+3. Complete device testing of MediaProjection capture on the POCO X3 NFC / Android 12.
+4. Add in-memory frame processing, user-calibrated game regions, and on-device tile recognition with confidence checks.
+5. Connect confirmed observations to the move analyzer, then consider an optional recommendation panel.
 
 This repository is under active development. A successful source commit is not the same as a tested release APK; builds and device testing must be verified separately.
