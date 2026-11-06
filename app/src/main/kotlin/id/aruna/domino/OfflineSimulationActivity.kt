@@ -23,6 +23,7 @@ class OfflineSimulationActivity : Activity() {
     private lateinit var boardView: TextView
     private lateinit var handView: LinearLayout
     private lateinit var analysisView: TextView
+    private lateinit var recommendationView: TextView
     private lateinit var turnView: TextView
     private lateinit var leftButton: Button
     private lateinit var rightButton: Button
@@ -56,6 +57,14 @@ class OfflineSimulationActivity : Activity() {
         page.addView(section("KARTU LATIHAN (7 KEPING)"))
         handView = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         page.addView(handView)
+        page.addView(section("REKOMENDASI OTOMATIS • SIMULASI"))
+        recommendationView = TextView(this).apply {
+            textSize = 20f
+            setPadding(12, 14, 12, 14)
+            setBackgroundColor(0xFFE7F0FF.toInt())
+            text = "Menyiapkan rekomendasi..."
+        }
+        page.addView(recommendationView)
         page.addView(section("HASIL ANALISIS SIMULASI"))
         analysisView = TextView(this).apply {
             textSize = 15f
@@ -181,6 +190,7 @@ class OfflineSimulationActivity : Activity() {
 
     private fun refresh() {
         turnView.text = "STATUS: $currentTurn"
+        updateAutomaticRecommendation()
         boardView.text = "Rantai: " + chain.snapshot().joinToString("  —  ") +
             "\nUjung kiri: ${chain.leftEnd}     Ujung kanan: ${chain.rightEnd}"
         handView.removeAllViews()
@@ -202,6 +212,27 @@ class OfflineSimulationActivity : Activity() {
             handView.addView(row)
         }
         updateSideButtons()
+    }
+
+    /**
+     * Shows exactly one legal move in the offline practice simulator.
+     * The choice is derived only from the locally generated practice hand
+     * and the public simulated chain.
+     */
+    private fun updateAutomaticRecommendation() {
+        if (currentTurn != "Giliran latihan") {
+            recommendationView.text = "Menunggu giliran latihan berikutnya."
+            return
+        }
+        val move = MoveAnalyzer.legalMoves(hand, chain).firstOrNull()
+        if (move == null) {
+            recommendationView.text = "Belum ada kartu yang cocok."
+            return
+        }
+        val sides = move.sides.joinToString(" / ") {
+            if (it == ChainSide.LEFT) "KIRI" else "KANAN"
+        }
+        recommendationView.text = "KARTU: ${move.tile}\nPOSISI: $sides"
     }
 
     private fun updateSideButtons() {
