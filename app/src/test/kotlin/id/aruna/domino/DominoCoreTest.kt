@@ -127,4 +127,24 @@ class DominoCoreTest {
         assertEquals(25, stats.unknownTiles)
     }
 
+
+    @Test
+    fun recommendationChoosesLegalTileWithHighestPipTotal() {
+        val chain = DominoChain()
+        chain.placeFirst(DominoTile.of(3, 4))
+
+        val recommendation = MoveAnalyzer.recommendMove(
+            listOf(
+                DominoTile.of(0, 3),
+                DominoTile.of(4, 6),
+                DominoTile.of(1, 2)
+            ),
+            chain
+        )
+
+        assertEquals(DominoTile.of(4, 6), recommendation?.move?.tile)
+        assertEquals(10, recommendation?.pipValue)
+        assertEquals(setOf(ChainSide.RIGHT), recommendation?.move?.sides)
+    }
+
 }
