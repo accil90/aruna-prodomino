@@ -33,6 +33,11 @@ class ScreenObserverService : Service() {
     private lateinit var workerThread: HandlerThread
     private lateinit var workerHandler: Handler
     private var frameCount = 0L
+    private var captureWidth = 0
+    private var captureHeight = 0
+    private var captureDensityDpi = 0
+    private var observerStartedAt = 0L
+    private var lastFrameAt = 0L
 
     override fun onCreate() {
         super.onCreate()
@@ -54,6 +59,9 @@ class ScreenObserverService : Service() {
 
     private fun startObserver(intent: Intent) {
         if (projection != null) return
+        frameCount = 0L
+        observerStartedAt = System.currentTimeMillis()
+        lastFrameAt = 0L
 
         val notification = buildNotification("Menunggu layar permainan…")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -101,6 +109,9 @@ class ScreenObserverService : Service() {
         @Suppress("DEPRECATION")
         (getSystemService(Context.WINDOW_SERVICE) as WindowManager).defaultDisplay.getRealMetrics(metrics)
 
+        captureWidth = metrics.widthPixels
+        captureHeight = metrics.heightPixels
+        captureDensityDpi = metrics.densityDpi
         imageReader = ImageReader.newInstance(
             metrics.widthPixels,
             metrics.heightPixels,
@@ -112,7 +123,8 @@ class ScreenObserverService : Service() {
                 if (frame != null) {
                     frame.close()
                     frameCount += 1
-                    if (frameCount % 30L == 0L) {
+                    lastFrameAt = System.currentTimeMillis()
+                    if (frameCount % 15L == 0L) {
                         updateNotification("Pengamat aktif • $frameCount frame diterima")
                         sendStatus(true)
                     }
@@ -167,6 +179,11 @@ class ScreenObserverService : Service() {
         sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).apply {
             putExtra(EXTRA_ACTIVE, active)
             putExtra(EXTRA_FRAMES, frameCount)
+            putExtra(EXTRA_WIDTH, captureWidth)
+            putExtra(EXTRA_HEIGHT, captureHeight)
+            putExtra(EXTRA_DENSITY_DPI, captureDensityDpi)
+            putExtra(EXTRA_STARTED_AT, observerStartedAt)
+            putExtra(EXTRA_LAST_FRAME_AT, lastFrameAt)
         })
     }
 
@@ -229,6 +246,11 @@ class ScreenObserverService : Service() {
         const val EXTRA_PERMISSION_DATA = "permission_data"
         const val EXTRA_ACTIVE = "observer_active"
         const val EXTRA_FRAMES = "observer_frames"
+        const val EXTRA_WIDTH = "observer_width"
+        const val EXTRA_HEIGHT = "observer_height"
+        const val EXTRA_DENSITY_DPI = "observer_density_dpi"
+        const val EXTRA_STARTED_AT = "observer_started_at"
+        const val EXTRA_LAST_FRAME_AT = "observer_last_frame_at"
         private const val CHANNEL_ID = "aruna_domino_observer"
         private const val NOTIFICATION_ID = 7301
     }
