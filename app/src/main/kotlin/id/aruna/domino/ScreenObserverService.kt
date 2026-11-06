@@ -38,6 +38,7 @@ class ScreenObserverService : Service() {
     private var captureDensityDpi = 0
     private var observerStartedAt = 0L
     private var lastFrameAt = 0L
+    private var floatingWindow: FloatingRecommendationWindow? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -52,6 +53,17 @@ class ScreenObserverService : Service() {
                 stopObserver()
                 stopSelf()
             }
+            ACTION_SHOW_RECOMMENDATION -> {
+                if (Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(this)) {
+                    val tile = intent.getStringExtra(EXTRA_RECOMMENDED_TILE).orEmpty()
+                    val sides = intent.getStringExtra(EXTRA_RECOMMENDED_SIDES).orEmpty()
+                    if (tile.isNotBlank()) {
+                        floatingWindow = floatingWindow ?: FloatingRecommendationWindow(this)
+                        floatingWindow?.showRecommendation(tile, sides)
+                    }
+                }
+            }
+            ACTION_HIDE_RECOMMENDATION -> floatingWindow?.hide()
             ACTION_RESET -> {
                 resetObservation()
                 stopSelf()
@@ -158,6 +170,8 @@ class ScreenObserverService : Service() {
     }
 
     private fun resetObservation() {
+        floatingWindow?.remove()
+        floatingWindow = null
         releaseCaptureResources()
         frameCount = 0L
         captureWidth = 0
@@ -175,6 +189,8 @@ class ScreenObserverService : Service() {
     }
 
     private fun stopObserver() {
+        floatingWindow?.remove()
+        floatingWindow = null
         releaseCaptureResources()
         sendStatus(false)
         if (Build.VERSION.SDK_INT >= 24) {
@@ -252,6 +268,8 @@ class ScreenObserverService : Service() {
     }
 
     override fun onDestroy() {
+        floatingWindow?.remove()
+        floatingWindow = null
         releaseCaptureResources()
         workerThread.quitSafely()
         super.onDestroy()
@@ -264,6 +282,10 @@ class ScreenObserverService : Service() {
         const val ACTION_STOP = "id.aruna.domino.action.OBSERVER_STOP"
         const val ACTION_RESET = "id.aruna.domino.action.OBSERVER_RESET"
         const val ACTION_STATUS = "id.aruna.domino.action.OBSERVER_STATUS"
+        const val ACTION_SHOW_RECOMMENDATION = "id.aruna.domino.action.SHOW_RECOMMENDATION"
+        const val ACTION_HIDE_RECOMMENDATION = "id.aruna.domino.action.HIDE_RECOMMENDATION"
+        const val EXTRA_RECOMMENDED_TILE = "recommended_tile"
+        const val EXTRA_RECOMMENDED_SIDES = "recommended_sides"
         const val EXTRA_RESULT_CODE = "permission_result_code"
         const val EXTRA_PERMISSION_DATA = "permission_data"
         const val EXTRA_ACTIVE = "observer_active"
