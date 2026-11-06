@@ -1,7 +1,13 @@
 package id.aruna.domino
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.media.projection.MediaProjectionManager
 import android.os.Bundle
+import android.os.Build
 import android.text.InputType
 import android.view.Gravity
 import android.view.ViewGroup
@@ -24,6 +30,21 @@ class MainActivity : Activity() {
     private lateinit var leftInput: EditText
     private lateinit var rightInput: EditText
     private lateinit var result: TextView
+    private lateinit var observerStatus: TextView
+    private var observerReceiverRegistered = false
+
+    private val observerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ScreenObserverService.ACTION_STATUS) return
+            val active = intent.getBooleanExtra(ScreenObserverService.EXTRA_ACTIVE, false)
+            val frames = intent.getLongExtra(ScreenObserverService.EXTRA_FRAMES, 0L)
+            observerStatus.text = if (active) {
+                "Pengamat aktif • $frames frame diterima\\nPengenalan kartu belum diaktifkan."
+            } else {
+                "Pengamat tidak aktif."
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +64,36 @@ class MainActivity : Activity() {
             textSize = 14f
             gravity = Gravity.CENTER
             setPadding(0, 8, 0, 16)
+        })
+
+        page.addView(sectionTitle("PENGAMAT LAYAR"))
+        observerStatus = TextView(this).apply {
+            text = "Pengamat tidak aktif. Mulai untuk meminta izin tangkap layar Android."
+            textSize = 14f
+            setPadding(0, 6, 0, 8)
+        }
+        page.addView(observerStatus)
+        val observerControls = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+        }
+        observerControls.addView(Button(this).apply {
+            text = "Mulai pengamat"
+            setOnClickListener { requestObserverPermission() }
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        observerControls.addView(Button(this).apply {
+            text = "Hentikan"
+            setOnClickListener {
+                startService(Intent(this@MainActivity, ScreenObserverService::class.java).apply {
+                    action = ScreenObserverService.ACTION_STOP
+                })
+                observerStatus.text = "Pengamat dihentikan."
+            }
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        page.addView(observerControls)
+        page.addView(TextView(this).apply {
+            text = "Tahap ini hanya menangkap frame layar setelah izin diberikan. Gambar tidak disimpan atau dikirim; pengenalan kartu dan giliran akan ditambahkan pada tahap berikutnya."
+            textSize = 12f
+            setPadding(0, 4, 0, 12)
         })
 
         status = TextView(this).apply {
@@ -116,9 +167,55 @@ class MainActivity : Activity() {
         page.addView(result)
 
         setContentView(ScrollView(this).apply { addView(page) })
+        registerObserverReceiver()
         restoreState()
         refreshObserved()
         refreshHand()
+    }
+
+    private fun registerObserverReceiver() {
+        val filter = IntentFilter(ScreenObserverService.ACTION_STATUS)
+        if (Build.VERSION.SDK_INT >= 33) {
+            registerReceiver(observerReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(observerReceiver, filter)
+        }
+        observerReceiverRegistered = true
+    }
+
+    private fun requestObserverPermission() {
+        val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_SCREEN_CAPTURE)
+    }
+
+    @Deprecated("Uses the compatible Activity result callback for the current minSdk.")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode != REQUEST_SCREEN_CAPTURE) return
+        if (resultCode != RESULT_OK || data == null) {
+            observerStatus.text = "Izin tangkap layar tidak diberikan."
+            return
+        }
+        val serviceIntent = Intent(this, ScreenObserverService::class.java).apply {
+            action = ScreenObserverService.ACTION_START
+            putExtra(ScreenObserverService.EXTRA_RESULT_CODE, resultCode)
+            putExtra(ScreenObserverService.EXTRA_PERMISSION_DATA, data)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent)
+        } else {
+            startService(serviceIntent)
+        }
+        observerStatus.text = "Memulai pengamat layar…"
+    }
+
+    override fun onDestroy() {
+        if (observerReceiverRegistered) {
+            runCatching { unregisterReceiver(observerReceiver) }
+            observerReceiverRegistered = false
+        }
+        super.onDestroy()
     }
 
     private fun sectionTitle(value: String) = TextView(this).apply {
@@ -242,4 +339,7 @@ class MainActivity : Activity() {
         }
     }
 
+    companion object {
+        private const val REQUEST_SCREEN_CAPTURE = 7302
+    }
 }
