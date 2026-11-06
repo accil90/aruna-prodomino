@@ -52,6 +52,10 @@ class ScreenObserverService : Service() {
                 stopObserver()
                 stopSelf()
             }
+            ACTION_RESET -> {
+                resetObservation()
+                stopSelf()
+            }
             ACTION_START -> startObserver(intent)
         }
         return START_NOT_STICKY
@@ -153,6 +157,23 @@ class ScreenObserverService : Service() {
         sendStatus(true)
     }
 
+    private fun resetObservation() {
+        releaseCaptureResources()
+        frameCount = 0L
+        captureWidth = 0
+        captureHeight = 0
+        captureDensityDpi = 0
+        observerStartedAt = 0L
+        lastFrameAt = 0L
+        sendStatus(false)
+        if (Build.VERSION.SDK_INT >= 24) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+    }
+
     private fun stopObserver() {
         releaseCaptureResources()
         sendStatus(false)
@@ -241,6 +262,7 @@ class ScreenObserverService : Service() {
     companion object {
         const val ACTION_START = "id.aruna.domino.action.OBSERVER_START"
         const val ACTION_STOP = "id.aruna.domino.action.OBSERVER_STOP"
+        const val ACTION_RESET = "id.aruna.domino.action.OBSERVER_RESET"
         const val ACTION_STATUS = "id.aruna.domino.action.OBSERVER_STATUS"
         const val EXTRA_RESULT_CODE = "permission_result_code"
         const val EXTRA_PERMISSION_DATA = "permission_data"
