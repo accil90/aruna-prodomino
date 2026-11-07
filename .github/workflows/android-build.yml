@@ -1,4 +1,4 @@
-name: Android and desktop build
+name: Android build
 
 on:
   push:
@@ -28,9 +28,6 @@ jobs:
       - name: Run unit tests
         run: gradle testDebugUnitTest
 
-      - name: Compile desktop application
-        run: gradle :desktop:compileKotlin
-
       - name: Build debug APK
         run: gradle assembleDebug
 
@@ -39,31 +36,4 @@ jobs:
         with:
           name: aruna-domino-pro-debug
           path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-
-  windows-desktop:
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.9"
-
-      - name: Build Windows MSI installer
-        run: gradle :desktop:packageMsi
-
-      - name: Upload Windows installer
-        uses: actions/upload-artifact@v4
-        with:
-          name: aruna-domino-pro-windows
-          path: desktop/build/compose/binaries/main/msi/*.msi
           if-no-files-found: error
