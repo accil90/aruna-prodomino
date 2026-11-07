@@ -28,6 +28,10 @@ data class ScreenAnalysis(
  * Layouts with touching/overlapping tiles may require a later calibration profile.
  */
 object DominoScreenAnalyzer {
+    // Jumlah kartu tangan yang didukung: berubah-ubah dari 1 sampai 7.
+    const val MIN_HAND_CARDS = 1
+    const val MAX_HAND_CARDS = 7
+
     fun analyze(frame: Bitmap): ScreenAnalysis {
         val candidates = findTileRegions(frame)
         val hand = mutableListOf<ScreenTile>()
@@ -43,12 +47,18 @@ object DominoScreenAnalyzer {
             if (zone == ScreenTileZone.HAND) hand.add(item) else table.add(item)
         }
 
-        val distinctHand = hand.map { it.tile }.distinct().take(7)
+        // Urutkan kartu tangan dari kiri ke kanan. Jangan gunakan distinct():
+        // setiap area kartu harus dipertahankan sebagai kartu tersendiri.
+        val detectedHand = hand
+            .sortedBy { (it.bounds.left + it.bounds.right) / 2 }
+            .take(MAX_HAND_CARDS)
+            .map { it.tile }
+
         val orderedTable = table.sortedBy { (it.bounds.left + it.bounds.right) / 2 }
             .map { it.tile }.distinct()
         val chain = buildChain(orderedTable)
-        val recommendation = if (chain != null && distinctHand.isNotEmpty()) {
-            MoveAnalyzer.recommendMove(distinctHand, chain)
+        val recommendation = if (chain != null && detectedHand.size >= MIN_HAND_CARDS) {
+            MoveAnalyzer.recommendMove(detectedHand, chain)
         } else null
 
         val note = when {
@@ -59,7 +69,7 @@ object DominoScreenAnalyzer {
             else -> "Pembacaan visual awal; cocokkan hasil dengan layar permainan."
         }
         return ScreenAnalysis(
-            hand = distinctHand,
+            hand = detectedHand,
             table = orderedTable,
             leftEnd = chain?.leftEnd,
             rightEnd = chain?.rightEnd,
