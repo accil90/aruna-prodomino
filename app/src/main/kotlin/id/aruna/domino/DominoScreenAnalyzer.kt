@@ -33,7 +33,15 @@ object DominoScreenAnalyzer {
     const val MAX_HAND_CARDS = 7
 
     fun analyze(frame: Bitmap): ScreenAnalysis {
-        val candidates = findTileRegions(frame)
+        // Area kartu tangan dipisahkan berdasarkan proyeksi kolom pada pita bawah layar.
+        // Ini menghindari satu komponen putih besar menelan beberapa kartu sekaligus.
+        val handRegions = findHandTileRegions(frame)
+        val tableRegions = findTileRegions(frame).filter {
+            (it.top + it.bottom) / 2f / frame.height < 0.68f
+        }
+        val candidates = (tableRegions + handRegions).distinctBy {
+            "${it.left}:${it.top}:${it.right}:${it.bottom}"
+        }
         val hand = mutableListOf<ScreenTile>()
         val table = mutableListOf<ScreenTile>()
 
@@ -94,6 +102,92 @@ object DominoScreenAnalyzer {
             }
             chain
         }.getOrNull()
+    }
+
+    /**
+     * Kartu tangan berada berjajar mendatar di pita bawah layar.
+     * Hitung piksel wajah kartu per kolom, lalu jadikan setiap rentang kolom
+     * yang terpisah sebagai satu kandidat kartu.
+     */
+    private fun findHandTileRegions(bitmap: Bitmap): List<Rect> {
+        val scale = min(1f, 640f / bitmap.width)
+        val width = max(1, (bitmap.width * scale).toInt())
+        val height = max(1, (bitmap.height * scale).toInt())
+        val sample = if (width == bitmap.width && height == bitmap.height) bitmap
+            else Bitmap.createScaledBitmap(bitmap, width, height, true)
+        val pixels = IntArray(width * height)
+        sample.getPixels(pixels, 0, width, 0, 0, width, height)
+        if (sample !== bitmap) sample.recycle()
+
+        val top = (height * 0.64f).toInt().coerceIn(0, height - 1)
+        val bottom = (height * 0.98f).toInt().coerceIn(top + 1, height)
+        val roiHeight = bottom - top
+        val projection = IntArray(width)
+        val mask = BooleanArray(width * roiHeight)
+
+        for (y in 0 until roiHeight) {
+            for (x in 0 until width) {
+                val c = pixels[(top + y) * width + x]
+                val red = (c ushr 16) and 255
+                val green = (c ushr 8) and 255
+                val blue = c and 255
+                val hi = max(red, max(green, blue))
+                val lo = min(red, min(green, blue))
+                val brightness = (red * 299 + green * 587 + blue * 114) / 1000
+                val brightFace = brightness >= 188 && hi - lo <= 82
+                mask[y * width + x] = brightFace
+                if (brightFace) projection[x]++
+            }
+        }
+
+        // Satu kolom dianggap bagian kartu bila cukup banyak baris berisi wajah terang.
+        val activeThreshold = max(4, (roiHeight * 0.07f).toInt())
+        val active = BooleanArray(width) { projection[it] >= activeThreshold }
+        val found = mutableListOf<Rect>()
+        val sx = bitmap.width.toFloat() / width
+        val sy = bitmap.height.toFloat() / height
+
+        var x = 0
+        while (x < width) {
+            while (x < width && !active[x]) x++
+            if (x >= width) break
+            val left = x
+            var lastActive = x
+            var gap = 0
+            x++
+            while (x < width) {
+                if (active[x]) {
+                    lastActive = x
+                    gap = 0
+                } else {
+                    gap++
+                    if (gap > 2) break
+                }
+                x++
+            }
+            val right = lastActive + 1
+            if (right - left >= max(8, (width * 0.012f).toInt())) {
+                var minY = roiHeight
+                var maxY = -1
+                for (px in left until right) {
+                    for (py in 0 until roiHeight) {
+                        if (mask[py * width + px]) {
+                            minY = min(minY, py)
+                            maxY = max(maxY, py)
+                        }
+                    }
+                }
+                if (maxY > minY && maxY - minY >= (roiHeight * 0.18f).toInt()) {
+                    found.add(Rect(
+                        (left * sx).toInt().coerceIn(0, bitmap.width - 1),
+                        ((top + minY) * sy).toInt().coerceIn(0, bitmap.height - 1),
+                        (right * sx).toInt().coerceIn(1, bitmap.width),
+                        ((top + maxY + 1) * sy).toInt().coerceIn(1, bitmap.height)
+                    ))
+                }
+            }
+        }
+        return found.sortedBy { (it.left + it.right) / 2 }.take(MAX_HAND_CARDS)
     }
 
     private fun findTileRegions(bitmap: Bitmap): List<Rect> {
