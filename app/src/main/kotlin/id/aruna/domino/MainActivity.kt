@@ -52,7 +52,7 @@ class MainActivity : Activity() {
 
         page.addView(sectionTitle("PENGENALAN KARTU DARI SCREENSHOT"))
         page.addView(TextView(this).apply {
-            text = "Pilih screenshot yang tersimpan. Profil awal menggunakan tata letak Royal Domino landscape yang kamu kirim. Hasil pembacaan perlu diperiksa."
+            text = "Pilih screenshot yang tersimpan. Profil perkiraan memakai posisi dua kartu pada screenshot contoh; hasil wajib diperiksa. Hasil pembacaan perlu diperiksa."
             textSize = 13f
         })
         page.addView(Button(this).apply {
@@ -171,11 +171,11 @@ class MainActivity : Activity() {
             } else {
                 val read = DominoPipRecognizer.recognize(bitmap, safe, vertical = true)
                 if (read.tile == null) "Kartu ${index + 1}: belum terbaca — ${read.message}"
-                else "Kartu ${index + 1}: ${read.tile} (keyakinan awal ${(read.confidence * 100).toInt()}%; periksa hasil)"
+                else "Kartu ${index + 1}: ${read.tile} (tebakan awal; verifikasi manual) — ${read.message}"
             }
         }
         return "HASIL PEMBACAAN SCREENSHOT\n" + lines.joinToString("\n") +
-            "\n\nCatatan: profil ini baru cocok untuk tata letak screenshot contoh. Belum melacak layar secara otomatis."
+            "\n\nCatatan: posisi area masih perkiraan dari satu screenshot, bukan kalibrasi teruji. Belum membaca seluruh kartu atau melacak layar otomatis."
     }
 
     private fun sectionTitle(value: String) = TextView(this).apply {
