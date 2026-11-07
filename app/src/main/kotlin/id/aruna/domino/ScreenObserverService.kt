@@ -24,8 +24,7 @@ import android.content.pm.ServiceInfo
 
 /**
  * Captures the device display only after the user approves Android's
- * MediaProjection consent dialog. Frames are currently discarded after
- * acquisition; no screenshots are saved or uploaded.
+ * MediaProjection consent dialog. Frames are analyzed locally in memory; no screenshots are saved or uploaded.
  */
 class ScreenObserverService : Service() {
     private var projection: MediaProjection? = null
@@ -360,7 +359,13 @@ class ScreenObserverService : Service() {
         const val EXTRA_HEIGHT = "observer_height"
         const val EXTRA_DENSITY_DPI = "observer_density_dpi"
         const val EXTRA_STARTED_AT = "observer_started_at"
-        const val EXTRA_LAST_FRAME_AT = "observer_last_frame_at"\n        const val EXTRA_HAND = "observer_hand"\n        const val EXTRA_TABLE = "observer_table"\n        const val EXTRA_LEFT_END = "observer_left_end"\n        const val EXTRA_RIGHT_END = "observer_right_end"\n        const val EXTRA_RECOMMENDATION = "observer_recommendation"\n        const val EXTRA_STATUS_MESSAGE = "observer_status_message"
+        const val EXTRA_LAST_FRAME_AT = "observer_last_frame_at"
+        const val EXTRA_HAND = "observer_hand"
+        const val EXTRA_TABLE = "observer_table"
+        const val EXTRA_LEFT_END = "observer_left_end"
+        const val EXTRA_RIGHT_END = "observer_right_end"
+        const val EXTRA_RECOMMENDATION = "observer_recommendation"
+        const val EXTRA_STATUS_MESSAGE = "observer_status_message"
         private const val CHANNEL_ID = "aruna_domino_observer"
         private const val NOTIFICATION_ID = 7301
     }
