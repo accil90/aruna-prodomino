@@ -15,7 +15,6 @@ data class TileReadResult(
     val tile: DominoTile?,
     val firstHalfPips: Int?,
     val secondHalfPips: Int?,
-    val confidence: Float,
     val message: String
 )
 
@@ -28,7 +27,7 @@ object DominoPipRecognizer {
             tileBounds.bottom.coerceIn(0, bitmap.height)
         )
         if (bounds.width() < 12 || bounds.height() < 12) {
-            return TileReadResult(null, null, null, 0f, "Area kartu terlalu kecil.")
+            return TileReadResult(null, null, null, "Area kartu terlalu kecil.")
         }
 
         val first: Rect
@@ -46,10 +45,10 @@ object DominoPipRecognizer {
         val a = countPips(bitmap, first)
         val b = countPips(bitmap, second)
         if (a !in 0..6 || b !in 0..6) {
-            return TileReadResult(null, a, b, 0f, "Titik belum terbaca jelas; periksa area kartu.")
+            return TileReadResult(null, a, b, "Titik belum terbaca jelas; periksa area kartu.")
         }
         val tile = DominoTile.of(a, b)
-        return TileReadResult(tile, a, b, 0.72f, "Pembacaan awal. Cocokkan dengan gambar asli.")
+        return TileReadResult(tile, a, b, "Tebakan heuristik awal; wajib cocokkan dengan gambar asli.")
     }
 
     private fun countPips(bitmap: Bitmap, source: Rect): Int {
