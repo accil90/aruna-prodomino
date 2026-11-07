@@ -33,6 +33,7 @@ class ScreenObserverService : Service() {
     private lateinit var workerThread: HandlerThread
     private lateinit var workerHandler: Handler
     private var frameCount = 0L
+    private var lastProcessedAt = 0L
     private var captureWidth = 0
     private var captureHeight = 0
     private var captureDensityDpi = 0
@@ -135,14 +136,27 @@ class ScreenObserverService : Service() {
             2
         ).also { reader ->
             reader.setOnImageAvailableListener({ source ->
-                val frame = source.acquireLatestImage()
-                if (frame != null) {
-                    frame.close()
+                val frame = source.acquireLatestImage() ?: return@setOnImageAvailableListener
+                frame.use { image ->
                     frameCount += 1
                     lastFrameAt = System.currentTimeMillis()
-                    if (frameCount % 15L == 0L) {
-                        updateNotification("Pengamat aktif • $frameCount frame diterima")
-                        sendStatus(true)
+                    if (lastFrameAt - lastProcessedAt >= 500L) {
+                        lastProcessedAt = lastFrameAt
+                        val bitmap = imageToBitmap(image, 640)
+                        if (bitmap != null) {
+                            try {
+                                val analysis = DominoScreenAnalyzer.analyze(bitmap)
+                                publishAnalysis(analysis)
+                            } catch (_: Throwable) {
+                                floatingWindow?.hide()
+                                sendStatus(true)
+                            } finally {
+                                bitmap.recycle()
+                            }
+                        }
+                    }
+                    if (frameCount % 30L == 0L) {
+                        updateNotification("Pengamat aktif • " + frameCount + " frame")
                     }
                 }
             }, workerHandler)
@@ -167,6 +181,57 @@ class ScreenObserverService : Service() {
 
         updateNotification("Pengamat aktif • layar sedang ditangkap")
         sendStatus(true)
+    }
+
+    private fun imageToBitmap(image: android.media.Image, maxWidth: Int): Bitmap? {
+        val plane = image.planes.firstOrNull() ?: return null
+        val buffer = plane.buffer
+        val pixelStride = plane.pixelStride
+        val rowStride = plane.rowStride
+        if (pixelStride < 4 || rowStride <= 0) return null
+        val scale = maxOf(1f, image.width.toFloat() / maxWidth)
+        val width = (image.width / scale).toInt().coerceAtLeast(1)
+        val height = (image.height / scale).toInt().coerceAtLeast(1)
+        val pixels = IntArray(width * height)
+        for (y in 0 until height) {
+            val sy = (y * scale).toInt().coerceAtMost(image.height - 1)
+            for (x in 0 until width) {
+                val sx = (x * scale).toInt().coerceAtMost(image.width - 1)
+                val offset = sy * rowStride + sx * pixelStride
+                if (offset + 3 >= buffer.limit()) continue
+                val r = buffer.get(offset).toInt() and 255
+                val g = buffer.get(offset + 1).toInt() and 255
+                val b = buffer.get(offset + 2).toInt() and 255
+                val a = buffer.get(offset + 3).toInt() and 255
+                pixels[y * width + x] = android.graphics.Color.argb(a, r, g, b)
+            }
+        }
+        return Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
+    }
+
+    private fun publishAnalysis(analysis: ScreenAnalysis) {
+        val recommendation = analysis.recommendation
+        if (recommendation != null && analysis.leftEnd != null && analysis.rightEnd != null) {
+            val side = recommendation.move.sides.joinToString(" / ") {
+                if (it == ChainSide.LEFT) "KIRI" else "KANAN"
+            }
+            if (Build.VERSION.SDK_INT < 23 || android.provider.Settings.canDrawOverlays(this)) {
+                floatingWindow = floatingWindow ?: FloatingRecommendationWindow(this)
+                floatingWindow?.showRecommendation(recommendation.move.tile.toString(), "Mainkan: " + side)
+            }
+        } else {
+            floatingWindow?.hide()
+        }
+        sendBroadcast(Intent(ACTION_STATUS).setPackage(packageName).apply {
+            putExtra(EXTRA_ACTIVE, true)
+            putExtra(EXTRA_FRAMES, frameCount)
+            putExtra(EXTRA_HAND, analysis.hand.joinToString(",") { it.toString() })
+            putExtra(EXTRA_TABLE, analysis.table.joinToString(",") { it.toString() })
+            putExtra(EXTRA_LEFT_END, analysis.leftEnd ?: -1)
+            putExtra(EXTRA_RIGHT_END, analysis.rightEnd ?: -1)
+            putExtra(EXTRA_RECOMMENDATION, recommendation?.move?.tile?.toString().orEmpty())
+            putExtra(EXTRA_STATUS_MESSAGE, analysis.note)
+        })
     }
 
     private fun resetObservation() {
@@ -294,7 +359,7 @@ class ScreenObserverService : Service() {
         const val EXTRA_HEIGHT = "observer_height"
         const val EXTRA_DENSITY_DPI = "observer_density_dpi"
         const val EXTRA_STARTED_AT = "observer_started_at"
-        const val EXTRA_LAST_FRAME_AT = "observer_last_frame_at"
+        const val EXTRA_LAST_FRAME_AT = "observer_last_frame_at"\n        const val EXTRA_HAND = "observer_hand"\n        const val EXTRA_TABLE = "observer_table"\n        const val EXTRA_LEFT_END = "observer_left_end"\n        const val EXTRA_RIGHT_END = "observer_right_end"\n        const val EXTRA_RECOMMENDATION = "observer_recommendation"\n        const val EXTRA_STATUS_MESSAGE = "observer_status_message"
         private const val CHANNEL_ID = "aruna_domino_observer"
         private const val NOTIFICATION_ID = 7301
     }
