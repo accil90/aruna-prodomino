@@ -1,6 +1,9 @@
 package id.aruna.domino
 
 import android.app.Activity
+import android.media.projection.MediaProjectionManager
+import android.os.Build
+import android.provider.Settings
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -68,6 +71,23 @@ class MainActivity : Activity() {
             text = "Belum ada screenshot yang dibaca."
         }
         page.addView(scanResult)
+
+        page.addView(sectionTitle("PENGAMAT LAYAR REAL-TIME"))
+        page.addView(TextView(this).apply {
+            text = "Pengamatan dimulai hanya setelah kamu menyetujui izin tangkap layar Android. Pada tahap ini aplikasi menerima frame dan menampilkan status; pengenalan otomatis belum disambungkan."
+            textSize = 13f
+        })
+        page.addView(Button(this).apply {
+            text = "Aktifkan pengamatan layar"
+            setOnClickListener { requestScreenObservation() }
+        })
+        page.addView(Button(this).apply {
+            text = "Hentikan pengamatan"
+            setOnClickListener {
+                startService(Intent(this@MainActivity, ScreenObserverService::class.java).setAction(ScreenObserverService.ACTION_STOP))
+                scanResult.text = "Pengamatan dihentikan."
+            }
+        })
 
         status = TextView(this).apply {
             textSize = 16f
@@ -142,6 +162,20 @@ class MainActivity : Activity() {
     @Deprecated("Deprecated in Android API; retained for broad device compatibility")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CAPTURE) {
+            if (resultCode != RESULT_OK || data == null) {
+                scanResult.text = "Izin tangkap layar tidak diberikan."
+                return
+            }
+            val service = Intent(this, ScreenObserverService::class.java).apply {
+                action = ScreenObserverService.ACTION_START
+                putExtra(ScreenObserverService.EXTRA_RESULT_CODE, resultCode)
+                putExtra(ScreenObserverService.EXTRA_PERMISSION_DATA, data)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(service) else startService(service)
+            scanResult.text = "Pengamatan layar aktif. Frame diterima lokal dan belum dikenali sebagai kartu."
+            return
+        }
         if (requestCode != REQUEST_IMAGE || resultCode != RESULT_OK) return
         val uri: Uri = data?.data ?: return
         val bitmap = runCatching {
@@ -176,6 +210,16 @@ class MainActivity : Activity() {
         }
         return "HASIL PEMBACAAN SCREENSHOT\n" + lines.joinToString("\n") +
             "\n\nCatatan: posisi area masih perkiraan dari satu screenshot, bukan kalibrasi teruji. Belum membaca seluruh kartu atau melacak layar otomatis."
+    }
+
+    private fun requestScreenObservation() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.canDrawOverlays(this)) {
+            startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+            scanResult.text = "Izinkan ARUNA DOMINO tampil di atas aplikasi lain, lalu tekan Aktifkan pengamatan layar sekali lagi."
+            return
+        }
+        val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
+        startActivityForResult(manager.createScreenCaptureIntent(), REQUEST_CAPTURE)
     }
 
     private fun sectionTitle(value: String) = TextView(this).apply {
@@ -286,5 +330,6 @@ class MainActivity : Activity() {
 
     companion object {
         private const val REQUEST_IMAGE = 4102
+        private const val REQUEST_CAPTURE = 4103
     }
 }
